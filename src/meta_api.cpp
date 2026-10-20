@@ -74,15 +74,15 @@ static META_FUNCTIONS gMetaFunctionTable = {
 
 // Description of plugin
 plugin_info_t Plugin_info = {
-    META_INTERFACE_VERSION,                      // ifvers
-    "FallGuys",                                  // name
-    "2.0",                                       // version
-    "2025",                                      // date
-    "hzqst",                                     // author
-    "https://github.com/hzqst/metamod-fallguys", // url
-    "FGUYS",                                     // logtag, all caps please
-    PT_ANYTIME,                                  // (when) loadable
-    PT_STARTUP,                                  // (when) unloadable
+    META_INTERFACE_VERSION,                                 // ifvers
+    "FallGuys",                                             // name
+    "2.0",                                                  // version
+    "2025",                                                 // date
+    "hzqst",                                                // author
+    "https://github.com/metamod-svencoop/metamod-svencoop", // url
+    "FGUYS",                                                // logtag, all caps please
+    PT_ANYTIME,                                             // (when) loadable
+    PT_STARTUP,                                             // (when) unloadable
 };
 
 // Global vars from metamod:
