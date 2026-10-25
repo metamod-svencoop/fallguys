@@ -3,6 +3,7 @@
 #include <meta_api.h> // of course
 
 #include <algorithm>
+#include <cstddef>
 
 #include "enginedef.h"
 #include "serverdef.h"
@@ -2230,208 +2231,6 @@ bool CPhysicsManager::AddToFullPack(struct entity_state_s* state, int entindex, 
     return true;
 }
 
-int CPhysicsManager::PM_FlyMove()
-{
-    int       bumpcount, numbumps;
-    vec3_t    dir;
-    float     d;
-    int       numplanes;
-    vec3_t    planes[MAX_CLIP_PLANES];
-    vec3_t    primal_velocity, original_velocity;
-    vec3_t    new_velocity;
-    int       i, j;
-    pmtrace_t trace;
-    vec3_t    end;
-    float     time_left, allFraction;
-    int       blocked;
-
-    numbumps = 4;
-
-    blocked   = 0;
-    numplanes = 0;
-
-    original_velocity = pmove->velocity;
-    primal_velocity   = pmove->velocity;
-
-    allFraction = 0;
-    time_left   = pmove->frametime;
-
-    for (bumpcount = 0; bumpcount < numbumps; bumpcount++)
-    {
-        if (!pmove->velocity[0] && !pmove->velocity[1] && !pmove->velocity[2])
-            break;
-
-        for (i = 0; i < 3; i++)
-            end[i] = pmove->origin[i] + time_left * pmove->velocity[i];
-
-        trace = pmove->PM_PlayerTrace(pmove->origin, end, PM_NORMAL, -1);
-
-        allFraction += trace.fraction;
-
-        if (trace.allsolid)
-        {
-            pmove->velocity = g_vecZero;
-            return 4;
-        }
-
-        if (trace.fraction > 0)
-        {
-            pmove->origin     = trace.endpos;
-            original_velocity = pmove->velocity;
-            numplanes         = 0;
-        }
-
-        if (trace.fraction == 1)
-            break;
-
-        //PM_AddToTouched(trace, pmove->velocity);
-
-        if (trace.plane.normal[2] > 0.7)
-            blocked |= 1;
-
-        if (!trace.plane.normal[2])
-            blocked |= 2;
-
-        time_left -= trace.fraction;
-
-        if (numplanes >= MAX_CLIP_PLANES)
-        {
-            pmove->velocity = g_vecZero;
-            break;
-        }
-
-        planes[numplanes] = trace.plane.normal;
-        ;
-        numplanes++;
-
-        if (pmove->movetype == MOVETYPE_WALK && ((pmove->onground == -1) || (pmove->friction != 1)))
-        {
-            for (i = 0; i < numplanes; i++)
-            {
-                if (planes[i][2] > 0.7)
-                {
-                    PM_ClipVelocity(original_velocity, planes[i], new_velocity, 1);
-                    original_velocity = new_velocity;
-                }
-                else
-                    PM_ClipVelocity(original_velocity, planes[i], new_velocity, 1.0f + pmove->movevars->bounce * (1 - pmove->friction));
-            }
-
-            pmove->velocity   = new_velocity;
-            original_velocity = new_velocity;
-        }
-        else
-        {
-            for (i = 0; i < numplanes; i++)
-            {
-                PM_ClipVelocity(original_velocity, planes[i], pmove->velocity, 1);
-
-                for (j = 0; j < numplanes; j++)
-                {
-                    if (j != i)
-                    {
-                        if (DotProduct(pmove->velocity, planes[j]) < 0)
-                            break;
-                    }
-                }
-
-                if (j == numplanes)
-                    break;
-            }
-
-            if (i != numplanes)
-            {
-            }
-            else
-            {
-                if (numplanes != 2)
-                {
-                    pmove->velocity = g_vecZero;
-                    break;
-                }
-
-                dir             = CrossProduct(planes[0], planes[1]);
-                d               = DotProduct(dir, pmove->velocity);
-                pmove->velocity = dir * d;
-            }
-
-            if (DotProduct(pmove->velocity, primal_velocity) <= 0)
-            {
-                pmove->velocity = g_vecZero;
-                break;
-            }
-        }
-    }
-
-    if (allFraction == 0)
-    {
-        pmove->velocity = g_vecZero;
-    }
-
-    return blocked;
-}
-
-int CPhysicsManager::PM_ClipVelocity(vec3_t in, vec3_t normal, vec3_t out, float overbounce)
-{
-#define STOP_EPSILON 0.1
-
-    float backoff;
-    float change;
-    float angle;
-    int   i, blocked;
-
-    angle = normal[2];
-
-    blocked = 0x00;
-
-    if (angle > 0)
-        blocked |= 0x01;
-
-    if (!angle)
-        blocked |= 0x02;
-
-    backoff = DotProduct(in, normal) * overbounce;
-
-    for (i = 0; i < 3; i++)
-    {
-        change = normal[i] * backoff;
-        out[i] = in[i] - change;
-
-        if (out[i] > -STOP_EPSILON && out[i] < STOP_EPSILON)
-            out[i] = 0;
-    }
-
-    return blocked;
-}
-
-
-qboolean CPhysicsManager::PM_AddToTouched(pmtrace_t tr, vec3_t impactvelocity)
-{
-    int i;
-
-    for (i = 0; i < pmove->numtouch; i++)
-    {
-        if (pmove->touchindex[i].ent == tr.ent)
-            break;
-    }
-
-    if (i != pmove->numtouch)
-        return false;
-
-    //mark me as super-pusher
-    tr.deltavelocity = impactvelocity;
-    tr.hitgroup      = 1;
-
-    if (pmove->numtouch >= MAX_PHYSENTS)
-    {
-        //pmove->Con_DPrintf("Too many entities were touched!\n");
-        return false;
-    }
-
-    pmove->touchindex[pmove->numtouch++] = tr;
-    return true;
-}
-
 bool CPhysicsManager::ShouldCollide(edict_t* pentTouched, edict_t* pentOther)
 {
     auto gameObjTouched = GetGameObject(pentTouched);
@@ -2456,6 +2255,10 @@ bool CPhysicsManager::ShouldCollide(edict_t* pentTouched, edict_t* pentOther)
 
     return true;
 }
+
+// pmove is declared with the original layout; fields read through it directly
+// must keep the same offset in the Sven Co-op 5.16 (build 10152) layout.
+static_assert(offsetof(playermove_t, player_index) == offsetof(playermove_10152_t, player_index), "playermove player_index layout");
 
 bool CPhysicsManager::PM_ShouldCollide(int entindex)
 {
@@ -2493,12 +2296,26 @@ bool CPhysicsManager::PM_ShouldCollide(int entindex)
 	Purpose: Remove entry "ps" from pmove->physents Array
 */
 
+template <typename TPlayerMove, typename TShouldCollide>
+static void PM_RemovePhysents(TPlayerMove* ppmove, TShouldCollide shouldCollide)
+{
+    auto new_end       = std::remove_if(ppmove->physents, ppmove->physents + ppmove->numphysent, [&](const physent_t& ps) {
+        return !shouldCollide(ps.info);
+    });
+    ppmove->numphysent = static_cast<int>(new_end - ppmove->physents);
+}
+
 void CPhysicsManager::PM_StartMove()
 {
-    auto new_end      = std::remove_if(pmove->physents, pmove->physents + pmove->numphysent, [this](const physent_t& ps) {
-        return !PM_ShouldCollide(ps.info);
-    });
-    pmove->numphysent = static_cast<int>(new_end - pmove->physents);
+    auto shouldCollide = [this](int info) {
+        return PM_ShouldCollide(info);
+    };
+
+    // Sven Co-op 5.16 (build 10152) enlarged physents to MAX_PHYSENTS_10152 entries.
+    if (g_pfn_build_number() >= 10152)
+        PM_RemovePhysents((playermove_10152_t*)pmove, shouldCollide);
+    else
+        PM_RemovePhysents(pmove, shouldCollide);
 }
 
 void CPhysicsManager::PM_EndMove()
