@@ -1797,13 +1797,10 @@ public:
     bool SetAbsBox(edict_t* pent);
     bool AddToFullPack(struct entity_state_s* state, int entindex, edict_t* ent, edict_t* host, int hostflags, int player);
 
-    bool     ShouldCollide(edict_t* pentTouched, edict_t* pentOther);
-    bool     PM_ShouldCollide(int info);
-    void     PM_StartMove();
-    void     PM_EndMove();
-    qboolean PM_AddToTouched(pmtrace_t tr, vec3_t impactvelocity);
-    int      PM_ClipVelocity(vec3_t in, vec3_t normal, vec3_t out, float overbounce);
-    int      PM_FlyMove();
+    bool ShouldCollide(edict_t* pentTouched, edict_t* pentOther);
+    bool PM_ShouldCollide(int info);
+    void PM_StartMove();
+    void PM_EndMove();
 
     edict_t* GetCurrentImpactEntity(Vector* vecImpactPoint, Vector* vecImpactDirection, float* flImpactImpulse);
     void     SetCurrentImpactEntity(edict_t* pImpactEntity, const Vector& vecImpactPoint, const Vector& vecImpactDirection, float flImpactImpulse);
