@@ -196,19 +196,6 @@ int NewAddToFullPack_Post(struct entity_state_s* state, int entindex, edict_t* e
             SET_META_RESULT(MRES_OVERRIDE);
             return 0;
         }
-
-        if (ASEXT_CallHook)
-        {
-            int uiFlags = 0;
-
-            (*ASEXT_CallHook)(g_AddToFullPackHook, 0, state, entindex, ent, host, hostflags, player, &uiFlags);
-
-            if (uiFlags & 1)
-            {
-                SET_META_RESULT(MRES_OVERRIDE);
-                return 0;
-            }
-        }
     }
 
     SET_META_RESULT(MRES_IGNORED);

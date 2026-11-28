@@ -415,22 +415,6 @@ void Touch( CBaseEntity@ pOther )
 }
 ```
 
-### Hook AddToFullPack
-
-//Warning: this dramatically hurts your performance.
-
-```angelscript
-g_Hooks.RegisterHook(Hooks::Player::PlayerAddToFullPack, @PlayerAddToFullPack);// register at initialization
-```
-
-```angelscript
-HookReturnCode PlayerAddToFullPack( entity_state_t@ state, int e, edict_t @ent, edict_t@ host, int hostflags, int player, uint& out uiFlags )
-{
-   //if uiFlags is set to 1, the entity will not be transmitted to client represented by edict_t@ host.
-    return HOOK_HANDLED;
-}
-```
-
 ### Hook post call of PlayerPostThink (aka PlayerPostThink_Post)
 
 ```angelscript
