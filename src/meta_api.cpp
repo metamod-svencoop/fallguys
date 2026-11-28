@@ -201,11 +201,7 @@ C_DLLEXPORT int Meta_Attach(PLUG_LOADTIME /* now */,
 
     void* asextHandle = NULL;
 
-#ifdef _WIN32
-    LOAD_PLUGIN(PLID, "addons/metamod/dlls/asext.dll", PLUG_LOADTIME::PT_ANYTIME, &asextHandle);
-#else
-    LOAD_PLUGIN(PLID, "addons/metamod/dlls/asext.so", PLUG_LOADTIME::PT_ANYTIME, &asextHandle);
-#endif
+    LOAD_PLUGIN(PLID, ASEXT_PLUGIN_PATH, PLUG_LOADTIME::PT_ANYTIME, &asextHandle);
     if (!asextHandle)
     {
         LOG_ERROR(PLID, "asext dll handle not found!");
