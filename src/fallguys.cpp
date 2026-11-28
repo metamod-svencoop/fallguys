@@ -34,7 +34,6 @@ int  g_iRunPlayerMoveIndex = 0;
 edict_t* g_ClientViewEntity[33] = {0};
 
 //For AngelScript Hook
-void* g_AddToFullPackHook           = NULL;
 void* g_PlayerPostThinkPostHook     = NULL;
 void* g_PlayerTouchTriggerHook      = NULL;
 void* g_PlayerTouchImpactHook       = NULL;
@@ -120,8 +119,6 @@ void EnableCustomStepSound(bool bEnabled)
 
 void RegisterAngelScriptHooks()
 {
-    g_AddToFullPackHook = ASEXT_RegisterHook("Post call of gEntityInterface.pfnAddToFullPack, only visible entity goes here", StopMode_CALL_ALL, 2, ASFlag_MapScript | ASFlag_Plugin, "Player", "PlayerAddToFullPack", "entity_state_t@ state, int entindex, edict_t @ent, edict_t@ host, int hostflags, int player, uint& out result");
-
     g_PlayerPostThinkPostHook = ASEXT_RegisterHook("Post call of gEntityInterface.pfnPlayerPostThink", StopMode_CALL_ALL, 2, ASFlag_MapScript | ASFlag_Plugin, "Player", "PlayerPostThinkPost", "CBasePlayer@ pPlayer");
 
     g_PlayerTouchTriggerHook = ASEXT_RegisterHook("Get called when player touches a trigger", StopMode_CALL_ALL, 2, ASFlag_MapScript | ASFlag_Plugin, "Player", "PlayerTouchTrigger", "CBasePlayer@ pPlayer, CBaseEntity@ pOther");

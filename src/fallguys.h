@@ -27,7 +27,6 @@ extern int  g_iRunPlayerMoveIndex;
 extern edict_t* g_ClientViewEntity[33];
 
 //For AngelScript Hook
-extern void* g_AddToFullPackHook;
 extern void* g_PlayerPostThinkPostHook;
 extern void* g_PlayerTouchTriggerHook;
 extern void* g_PlayerTouchImpactHook;
