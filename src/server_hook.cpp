@@ -12,9 +12,7 @@
 #include "physics.h"
 #include "soundengine.h"
 
-PRIVATE_FUNCTION_DEFINE(CPlayerMove_PlayStepSound);
-PRIVATE_FUNCTION_DEFINE(PM_PlaySoundFX_SERVER);
-PRIVATE_FUNCTION_DEFINE(RegisterSCScriptColor24);
+fallguys_bridge::PlayerMoveSession g_PlayerMoveSession;
 
 void SC_SERVER_DECL CASEngineFuncs__SetPhysicSimRate(void* pthis, SC_SERVER_DUMMYARG float rate)
 {
@@ -315,7 +313,7 @@ bool SC_SERVER_DECL CASEntityFuncs__GetVehicleWheelRuntimeInfo(void* pthis, SC_S
     return gPhysicsManager.GetVehicleWheelRuntimeInfo(ent, wheelIndex, RuntimeInfo);
 }
 
-float SC_SERVER_DECL CASSoundEngine_GetSoundInfo(void* pthis, SC_SERVER_DUMMYARG CString* str, SoundEngine_SoundInfo* SoundInfo)
+bool SC_SERVER_DECL CASSoundEngine_GetSoundInfo(void* pthis, SC_SERVER_DUMMYARG CString* str, SoundEngine_SoundInfo* SoundInfo)
 {
     return SoundEngine_GetSoundInfo(str->c_str(), SoundInfo);
 }
@@ -325,66 +323,106 @@ void SC_SERVER_DECL CASPlayerMove_GetTextureName(playermove_t* pthis, SC_SERVER_
     str->assign(pthis->sztexturename, strlen(pthis->sztexturename));
 }
 
-void SC_SERVER_DECL NewCPlayerMove_PlayStepSound(void* pthis, SC_SERVER_DUMMYARG int iType, float flVolume, bool bIsJump)
+namespace
 {
-    if (g_bUseCustomStepSound)
+
+using goldsrcext::HookHandle;
+using goldsrcext::IHookChain;
+using goldsrcext::kInvalidHookHandle;
+
+HookHandle g_hPlayStepSoundHook = kInvalidHookHandle;
+HookHandle g_hPlaySoundFXHook   = kInvalidHookHandle;
+
+void color24_ctor(color24* pthis)
+{
+    pthis->r = 0;
+    pthis->g = 0;
+    pthis->b = 0;
+}
+
+void color24_ctor_rgb(unsigned char r, unsigned char g, unsigned char b, color24* pthis)
+{
+    pthis->r = r;
+    pthis->g = g;
+    pthis->b = b;
+}
+
+void color24_copyctor(const color24* other, color24* pthis)
+{
+    *pthis = *other;
+}
+
+void color24_dtor(color24* /*pthis*/)
+{
+}
+
+color24* color24_opassign(const color24* other, color24* pthis)
+{
+    *pthis = *other;
+    return pthis;
+}
+
+void RegisterFallbackColor24(CASDocumentation* pASDoc)
+{
+    ASEXT_RegisterObjectType(pASDoc, "24-bit RGB color", "color24", sizeof(color24), asOBJ_VALUE);
+    ASEXT_RegisterObjectBehaviour(pASDoc, "Default constructor", "color24", ObjectBehaviour_Constructor, "void color24()", (void*)color24_ctor, asCALL_CDECL_OBJLAST);
+    ASEXT_RegisterObjectBehaviour(pASDoc, "Component constructor", "color24", ObjectBehaviour_Constructor, "void color24(uint8 r, uint8 g, uint8 b)", (void*)color24_ctor_rgb, asCALL_CDECL_OBJLAST);
+    ASEXT_RegisterObjectBehaviour(pASDoc, "Copy constructor", "color24", ObjectBehaviour_Constructor, "void color24(const color24& in other)", (void*)color24_copyctor, asCALL_CDECL_OBJLAST);
+    ASEXT_RegisterObjectBehaviour(pASDoc, "Destructor", "color24", ObjectBehaviour_Destructor, "void Destructcolor24()", (void*)color24_dtor, asCALL_CDECL_OBJLAST);
+    ASEXT_RegisterObjectMethod(pASDoc, "Assignment operator", "color24", "color24& opAssign(const color24& in other)", (void*)color24_opassign, asCALL_CDECL_OBJLAST);
+    ASEXT_RegisterObjectProperty(pASDoc, "Red component", "color24", "uint8 r", offsetof(color24, r));
+    ASEXT_RegisterObjectProperty(pASDoc, "Green component", "color24", "uint8 g", offsetof(color24, g));
+    ASEXT_RegisterObjectProperty(pASDoc, "Blue component", "color24", "uint8 b", offsetof(color24, b));
+}
+
+void OnPlayStepSound(IHookChain<void, playermove_s*, int, float, bool>* chain, void* /*userData*/, playermove_s* pmoveRaw, int iType, float flVolume, bool bIsJump) noexcept
+{
+    if (g_bUseCustomStepSound && pmoveRaw)
     {
-        if (g_pfn_build_number() >= 10152)
+        int uiFlags = 0;
+
+        if (ASEXT_CallHook)
         {
-            playermove_10152_t* playermove = *(playermove_10152_t**)((char*)pthis + 0x460);
+            (*ASEXT_CallHook)(g_PlayerMovePlayStepSoundHook, 0, g_engfuncs.pfnPEntityOfEntIndex(g_iRunPlayerMoveIndex)->pvPrivateData, pmoveRaw, iType, flVolume, bIsJump, &uiFlags);
+        }
 
-            int uiFlags = 0;
+        if (uiFlags & 1)
+            return;
 
-            if (ASEXT_CallHook)
-            {
-                (*ASEXT_CallHook)(g_PlayerMovePlayStepSoundHook, 0, g_engfuncs.pfnPEntityOfEntIndex(g_iRunPlayerMoveIndex)->pvPrivateData, playermove, iType, flVolume, bIsJump, &uiFlags);
-            }
-
-            if (uiFlags & 1)
-                return;
-
-            int footsteps                   = playermove->movevars->footsteps;
+        if (EngineGetBuildNumber() >= 10152)
+        {
+            auto* playermove                = reinterpret_cast<playermove_10152_t*>(pmoveRaw);
+            int   footsteps                 = playermove->movevars->footsteps;
             playermove->movevars->footsteps = 1;
 
-            g_call_original_CPlayerMove_PlayStepSound(pthis, SC_SERVER_PASS_DUMMYARG iType, flVolume, bIsJump);
+            chain->CallNext(pmoveRaw, iType, flVolume, bIsJump);
 
             playermove->movevars->footsteps = footsteps;
         }
         else
         {
-            playermove_t* playermove = *(playermove_t**)((char*)pthis + 0x460);
-
-            int uiFlags = 0;
-
-            if (ASEXT_CallHook)
-            {
-                (*ASEXT_CallHook)(g_PlayerMovePlayStepSoundHook, 0, g_engfuncs.pfnPEntityOfEntIndex(g_iRunPlayerMoveIndex)->pvPrivateData, playermove, iType, flVolume, bIsJump, &uiFlags);
-            }
-
-            if (uiFlags & 1)
-                return;
-
-            int footsteps                   = playermove->movevars->footsteps;
+            auto* playermove                = reinterpret_cast<playermove_t*>(pmoveRaw);
+            int   footsteps                 = playermove->movevars->footsteps;
             playermove->movevars->footsteps = 1;
 
-            g_call_original_CPlayerMove_PlayStepSound(pthis, SC_SERVER_PASS_DUMMYARG iType, flVolume, bIsJump);
+            chain->CallNext(pmoveRaw, iType, flVolume, bIsJump);
 
             playermove->movevars->footsteps = footsteps;
         }
     }
     else
     {
-        g_call_original_CPlayerMove_PlayStepSound(pthis, SC_SERVER_PASS_DUMMYARG iType, flVolume, bIsJump);
+        chain->CallNext(pmoveRaw, iType, flVolume, bIsJump);
     }
 }
 
-void NewPM_PlaySoundFX_SERVER(int playerindex, vec3_t* origin, int type, const char* sound, float vol, float att, int flags, int pitch)
+void OnPlaySoundFX(IHookChain<void, int, float*, int, const char*, float, float, int, int>* chain, void* /*userData*/, int playerindex, float* origin, int type, const char* sound, float vol, float att, int flags, int pitch) noexcept
 {
     if (g_bUseCustomStepSound)
     {
         int     uiFlags = 0;
         CString str     = {0};
-        str.assign(sound, strlen(sound));
+        str.assign(sound ? sound : "", sound ? strlen(sound) : 0);
 
         if (ASEXT_CallHook)
         {
@@ -396,22 +434,36 @@ void NewPM_PlaySoundFX_SERVER(int playerindex, vec3_t* origin, int type, const c
         if (uiFlags & 1)
             return;
     }
-    g_call_original_PM_PlaySoundFX_SERVER(playerindex, origin, type, sound, vol, att, flags, pitch);
+
+    chain->CallNext(playerindex, origin, type, sound, vol, att, flags, pitch);
 }
 
-hook_t* g_phook_CPlayerMove_PlayStepSound = NULL;
-hook_t* g_phook_PM_PlaySoundFX_SERVER     = NULL;
+} // namespace
 
 void InstallServerHooks()
 {
-    INSTALL_INLINEHOOK(CPlayerMove_PlayStepSound);
-    INSTALL_INLINEHOOK(PM_PlaySoundFX_SERVER);
+    if (!g_PlayerMoveSession.host)
+        return;
+
+    g_hPlayStepSoundHook = g_PlayerMoveSession.host->RegisterPlayStepSoundHook(&OnPlayStepSound, nullptr);
+    g_hPlaySoundFXHook   = g_PlayerMoveSession.host->RegisterPlaySoundFXHook(&OnPlaySoundFX, nullptr);
 }
 
 void UninstallServerHooks()
 {
-    UNINSTALL_HOOK(CPlayerMove_PlayStepSound);
-    UNINSTALL_HOOK(PM_PlaySoundFX_SERVER);
+    if (!g_PlayerMoveSession.host)
+        return;
+
+    if (g_hPlayStepSoundHook != kInvalidHookHandle)
+    {
+        g_PlayerMoveSession.host->UnregisterPlayStepSoundHook(g_hPlayStepSoundHook);
+        g_hPlayStepSoundHook = kInvalidHookHandle;
+    }
+    if (g_hPlaySoundFXHook != kInvalidHookHandle)
+    {
+        g_PlayerMoveSession.host->UnregisterPlaySoundFXHook(g_hPlaySoundFXHook);
+        g_hPlaySoundFXHook = kInvalidHookHandle;
+    }
 }
 
 void RegisterAngelScriptMethods(void)
@@ -421,10 +473,23 @@ void RegisterAngelScriptMethods(void)
     });
 
     ASEXT_RegisterDocInitCallback([](CASDocumentation* pASDoc) {
-        /* Register color24 type from server.dll */
-        if (g_pfn_RegisterSCScriptColor24)
+        /* Register color24 type if the host server DLL has not already registered it */
+        if (g_PlayerMoveSession.legacyRegisterColor24)
         {
-            g_pfn_RegisterSCScriptColor24(pASDoc);
+            g_PlayerMoveSession.legacyRegisterColor24(pASDoc);
+        }
+        else
+        {
+            asIScriptEngine* pScriptEngine = ASEXT_GetScriptEngine ? ASEXT_GetScriptEngine() : NULL;
+            if (!pScriptEngine && ASEXT_GetServerManager)
+            {
+                auto* pManager = ASEXT_GetServerManager();
+                pScriptEngine  = pManager ? pManager->scriptEngine : NULL;
+            }
+            if (!pScriptEngine || !pScriptEngine->GetTypeInfoByName("color24"))
+            {
+                RegisterFallbackColor24(pASDoc);
+            }
         }
 
         /* SoundEngine_SoundInfo */

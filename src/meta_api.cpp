@@ -68,8 +68,6 @@ static META_FUNCTIONS gMetaFunctionTable = {
     NULL,               // pfnGetNewDLLFunctions_Post	META; called after game DLL
     GetEngineFunctions, // pfnGetEngineFunctions	META; called before HL engine
     NULL,               // pfnGetEngineFunctions_Post	META; called after HL engine
-    NULL,               // pfnGetStudioBlendingInterface 2022/07/02 Added by hzqst
-    NULL,               // pfnGetStudioBlendingInterface_Post 2022/07/02 Added by hzqst
 };
 
 // Description of plugin
@@ -218,59 +216,22 @@ C_DLLEXPORT int Meta_Attach(PLUG_LOADTIME /* now */,
 
     LOG_MESSAGE(PLID, "Current engine type: %s!", gpMetaUtilFuncs->pfnGetEngineType());
 
-    FILL_FROM_GAMEDATA(server, PM_PlaySoundFX_SERVER);
-    FILL_FROM_GAMEDATA(server, CPlayerMove_PlayStepSound);
-    FILL_FROM_GAMEDATA(server, RegisterSCScriptColor24);
-
-    FILL_FROM_GAMEDATA(engine, build_number);
-    FILL_FROM_GAMEDATA(engine, SV_Physics);
-    FILL_FROM_GAMEDATA(engine, SV_PushEntity);
-    FILL_FROM_GAMEDATA(engine, SV_PushMove);
-    FILL_FROM_GAMEDATA(engine, SV_PushRotate);
-    FILL_FROM_GAMEDATA(engine, SV_WriteMovevarsToClient);
-
-    // Both builds publish SV_SingleClipMoveToEntity; 10152+ adds a passedict parameter.
-    if (g_pfn_build_number() >= 10152)
+    g_ServerPhysicsSession = fallguys_bridge::AcquireServerPhysicsExt(engineHandle, engineBase);
+    if (!g_ServerPhysicsSession.host)
     {
-        FILL_FROM_GAMEDATA(engine, SV_SingleClipMoveToEntity_10152);
+        LOG_ERROR(PLID, "Failed to acquire engine server physics backend!");
+        return FALSE;
     }
-    else
-    {
-        FILL_FROM_GAMEDATA(engine, SV_SingleClipMoveToEntity);
-    }
+    LOG_MESSAGE(PLID, "Server physics backend: %s", fallguys_bridge::BackendKindName(g_ServerPhysicsSession.kind));
 
-    VAR_FROM_GAMEDATA(engine, sv_models);
-    VAR_FROM_GAMEDATA(engine, host_frametime);
-    VAR_FROM_GAMEDATA(engine, pmovevars);
-    VAR_FROM_GAMEDATA(engine, sv_areanodes);
-    VAR_FROM_GAMEDATA(engine, pg_groupop);
-    VAR_FROM_GAMEDATA(engine, pg_groupmask);
-
-    //Print all private variables and functions here
-    LOG_MESSAGE(PLID, "PM_PlaySoundFX_SERVER found at %p!", g_pfn_PM_PlaySoundFX_SERVER);
-    LOG_MESSAGE(PLID, "CPlayerMove_PlayStepSound found at %p!", g_pfn_CPlayerMove_PlayStepSound);
-    LOG_MESSAGE(PLID, "RegisterSCScriptColor24 found at %p!", g_pfn_RegisterSCScriptColor24);
-
-    LOG_MESSAGE(PLID, "build_number found at %p!", g_pfn_build_number);
-    LOG_MESSAGE(PLID, "SV_Physics found at %p!", g_pfn_SV_Physics);
-    LOG_MESSAGE(PLID, "SV_PushEntity found at %p!", g_pfn_SV_PushEntity);
-    LOG_MESSAGE(PLID, "SV_PushMove found at %p!", g_pfn_SV_PushMove);
-    LOG_MESSAGE(PLID, "SV_PushRotate found at %p!", g_pfn_SV_PushRotate);
-    LOG_MESSAGE(PLID, "SV_WriteMovevarsToClient found at %p!", g_pfn_SV_WriteMovevarsToClient);
-    if (g_pfn_build_number() >= 10152)
+    g_PlayerMoveSession = fallguys_bridge::AcquirePlayerMoveExt(serverHandle, serverBase);
+    if (!g_PlayerMoveSession.host)
     {
-        LOG_MESSAGE(PLID, "SV_SingleClipMoveToEntity_10152 found at %p!", g_pfn_SV_SingleClipMoveToEntity_10152);
+        fallguys_bridge::ReleaseServerPhysicsExt(g_ServerPhysicsSession);
+        LOG_ERROR(PLID, "Failed to acquire Sven Co-op player move backend!");
+        return FALSE;
     }
-    else
-    {
-        LOG_MESSAGE(PLID, "SV_SingleClipMoveToEntity found at %p!", g_pfn_SV_SingleClipMoveToEntity);
-    }
-    LOG_MESSAGE(PLID, "sv_models found at %p!", sv_models);
-    LOG_MESSAGE(PLID, "host_frametime found at %p!", host_frametime);
-    LOG_MESSAGE(PLID, "pmovevars found at %p!", pmovevars);
-    LOG_MESSAGE(PLID, "sv_areanodes found at %p!", sv_areanodes);
-    LOG_MESSAGE(PLID, "pg_groupop found at %p!", pg_groupop);
-    LOG_MESSAGE(PLID, "pg_groupmask found at %p!", pg_groupmask);
+    LOG_MESSAGE(PLID, "Player move backend: %s", fallguys_bridge::BackendKindName(g_PlayerMoveSession.kind));
 
     LoadFMOD();
     InstallEngineHooks();
@@ -290,6 +251,8 @@ C_DLLEXPORT int Meta_Detach(PLUG_LOADTIME /* now */,
     gPhysicsManager.Shutdown();
     UninstallServerHooks();
     UninstallEngineHooks();
+    fallguys_bridge::ReleasePlayerMoveExt(g_PlayerMoveSession);
+    fallguys_bridge::ReleaseServerPhysicsExt(g_ServerPhysicsSession);
     UnloadFMOD();
 
     return TRUE;
