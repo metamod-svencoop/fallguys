@@ -230,7 +230,7 @@ void NewStartFrame(void)
     gPhysicsManager.EntityStartFrame();
 
     gPhysicsManager.SetGravityAcceleration(sv_gravity->value);
-    gPhysicsManager.StepSimulation((*host_frametime));
+    gPhysicsManager.StepSimulation(EngineGetHostFrametime());
 
     gPhysicsManager.EntityStartFrame_Post();
 

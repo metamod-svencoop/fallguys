@@ -1547,13 +1547,13 @@ void CPlayerObject::EndFrame(btDiscreteDynamicsWorld* world)
             {
                 gPhysicsManager.SetCurrentImpactEntity(m_ImpactEntity, m_ImpactPoint, m_ImpactDirection, m_flImpactImpulse);
 
-                NewSV_PushEntity(ent, &move);
+                EnginePushEntity(ent, &move);
 
                 gPhysicsManager.SetCurrentImpactEntity(NULL, g_vecZero, g_vecZero, 0);
             }
             else
             {
-                NewSV_PushEntity(ent, &move);
+                EnginePushEntity(ent, &move);
             }
 
             g_bIsPushPhysics = false;
@@ -2312,7 +2312,7 @@ void CPhysicsManager::PM_StartMove()
     };
 
     // Sven Co-op 5.16 (build 10152) enlarged physents to MAX_PHYSENTS_10152 entries.
-    if (g_pfn_build_number() >= 10152)
+    if (EngineGetBuildNumber() >= 10152)
         PM_RemovePhysents((playermove_10152_t*)pmove, shouldCollide);
     else
         PM_RemovePhysents(pmove, shouldCollide);
@@ -2744,7 +2744,7 @@ public:
             }
             else
             {
-                m_flAirTime += (float)(*host_frametime);
+                m_flAirTime += (float)EngineGetHostFrametime();
             }
         }
         else
@@ -2879,7 +2879,7 @@ public:
         float sine   = vecCurAxisWS.dot(vecGoalAxisWS);
         float error  = atan2(cosine, sine);
 
-        float drivative = (error - m_flPitchErrorPrev) / (float)(*host_frametime);
+        float drivative = (error - m_flPitchErrorPrev) / (float)EngineGetHostFrametime();
 
         //PID control
         float kp = 0.1f;
@@ -2932,7 +2932,7 @@ public:
             return;
         }
 
-        float drivative = (error - m_flRollErrorPrev) / (float)(*host_frametime);
+        float drivative = (error - m_flRollErrorPrev) / (float)EngineGetHostFrametime();
 
         //PID control
         float kp = 0.2f;
@@ -5560,11 +5560,11 @@ void CGameObject::ApplyEntityFollow()
         }
         if (m_follow_flags & FollowEnt_ApplyLinearVelocity)
         {
-            m_follow_origin_offet = m_follow_origin_offet + ent->v.velocity * (float)(*host_frametime);
+            m_follow_origin_offet = m_follow_origin_offet + ent->v.velocity * (float)EngineGetHostFrametime();
         }
         if (m_follow_flags & FollowEnt_ApplyAngularVelocity)
         {
-            m_follow_angles_offet = m_follow_angles_offet + ent->v.avelocity * (float)(*host_frametime);
+            m_follow_angles_offet = m_follow_angles_offet + ent->v.avelocity * (float)EngineGetHostFrametime();
         }
     }
 }

@@ -62,64 +62,21 @@ typedef struct areanode_s
     link_t             solid_edicts;
 } areanode_t;
 
-//Engine private functions
+#include "bridge/fallguys_bridge.h"
 
-typedef int (*fnbuild_number)();
-PRIVATE_FUNCTION_EXTERN(build_number);
+extern fallguys_bridge::ServerPhysicsSession g_ServerPhysicsSession;
 
-typedef void (*fnSV_Physics)();
-void NewSV_Physics();
-PRIVATE_FUNCTION_EXTERN(SV_Physics);
-
-// SV_PushEntity
-typedef trace_t (*fnSV_PushEntity)(edict_t* ent, vec3_t* push);
-trace_t NewSV_PushEntity(edict_t* ent, vec3_t* push);
-PRIVATE_FUNCTION_EXTERN(SV_PushEntity);
-
-// SV_PushMove
-typedef void (*fnSV_PushMove)(edict_t* pusher, float movetime);
-void NewSV_PushMove(edict_t* pusher, float movetime);
-PRIVATE_FUNCTION_EXTERN(SV_PushMove);
-
-// SV_PushRotate
-typedef int (*fnSV_PushRotate)(edict_t* pusher, float movetime);
-int NewSV_PushRotate(edict_t* pusher, float movetime);
-PRIVATE_FUNCTION_EXTERN(SV_PushRotate);
-
-typedef void (*fnSV_WriteMovevarsToClient)(void* message);
-void NewSV_WriteMovevarsToClient(void* message);
-PRIVATE_FUNCTION_EXTERN(SV_WriteMovevarsToClient);
-
-typedef edict_t* (*fnSV_TestEntityPosition)(edict_t* ent);
-edict_t* SV_TestEntityPositionEx(edict_t* ent);
-PRIVATE_FUNCTION_EXTERN(SV_TestEntityPosition);
-
-//typedef void(*fnSV_LinkEdict)(edict_t *ent, qboolean touch_triggers);
-//void SV_LinkEdict(edict_t *ent, qboolean touch_triggers);
-//PRIVATE_FUNCTION_EXTERN(SV_LinkEdict);
-
-typedef void (*fnSV_SingleClipMoveToEntity)(edict_t* ent, const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end, trace_t* trace);
-void SV_SingleClipMoveToEntity(edict_t* ent, const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end, trace_t* trace);
-PRIVATE_FUNCTION_EXTERN(SV_SingleClipMoveToEntity);
-
-typedef void (*fnSV_SingleClipMoveToEntity_10152)(edict_t* ent, const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end, trace_t* trace, edict_t* passedict);
-void SV_SingleClipMoveToEntity_10152(edict_t* ent, const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end, trace_t* trace, edict_t* passedict);
-PRIVATE_FUNCTION_EXTERN(SV_SingleClipMoveToEntity_10152);
-
-hull_t* SV_HullForBspNew(edict_t* ent, const vec3_t mins, const vec3_t maxs, vec3_t& offset);
-
-extern model_t* (*sv_models)[8192];
-extern double*       host_frametime;
-extern cvar_t*       sv_gravity;
-extern cvar_t*       mp_footsteps;
-extern playermove_t* pmove;
-extern movevars_t*   pmovevars;
-extern areanode_t (*sv_areanodes)[32];
-extern int* pg_groupop;
-extern int* pg_groupmask;
-
+int         EngineGetBuildNumber(void);
+double      EngineGetHostFrametime(void);
 int         EngineGetMaxPrecacheModel(void);
 model_t*    EngineGetPrecachedModelByIndex(int i);
 msurface_t* EngineGetSurfaceByIndex(model_t* mod, int index);
 int         EngineGetSurfaceIndex(model_t* mod, msurface_t* psurf);
 model_t*    EngineFindWorldModelBySubModel(model_t* psubmodel);
+void        EnginePushEntity(edict_t* ent, const vec3_t* push);
+edict_t*    SV_TestEntityPositionEx(edict_t* ent);
+hull_t*     SV_HullForBspNew(edict_t* ent, const vec3_t mins, const vec3_t maxs, vec3_t& offset);
+
+extern cvar_t*       sv_gravity;
+extern cvar_t*       mp_footsteps;
+extern playermove_t* pmove;

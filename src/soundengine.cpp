@@ -69,18 +69,40 @@ static FMOD_RESULT F_CALLBACK EmptyFMODCallback(FMOD_SYSTEM* system, FMOD_SYSTEM
 
 static bool LoadFMOD_Server()
 {
-    char szGameDir[32] = {0};
+    char szGameDir[64] = {0};
     g_engfuncs.pfnGetGameDir(szGameDir);
 
-    char szDllPath[64] = {0};
-    snprintf(szDllPath, sizeof(szDllPath) - 1, FMOD_DLL_PATH, szGameDir);
-    szDllPath[sizeof(szDllPath) - 1] = 0;
+    static const char* const kFmodPathTemplates[] = {
+#if defined(_WIN64)
+        "%s\\fmodex64.dll",
+        "%s\\fmodex.dll",
+#elif defined(_WIN32)
+        "%s\\fmodex.dll",
+#elif defined(__x86_64__) || defined(__LP64__)
+        "%s/libfmodex64.so",
+        "%s/cl_dlls/libfmodex64.so",
+        "%s/libfmodex.so",
+        "%s/cl_dlls/libfmodex.so",
+#else
+        "%s/cl_dlls/libfmodex.so",
+        "%s/libfmodex.so",
+#endif
+    };
 
-    g_FMOD_DllHandle = gpMetaUtilFuncs->pfnLoadLibrary(szDllPath);
+    char szDllPath[256] = {0};
+    for (const char* tmpl : kFmodPathTemplates)
+    {
+        snprintf(szDllPath, sizeof(szDllPath) - 1, tmpl, szGameDir);
+        szDllPath[sizeof(szDllPath) - 1] = 0;
+
+        g_FMOD_DllHandle = gpMetaUtilFuncs->pfnLoadLibrary(szDllPath);
+        if (g_FMOD_DllHandle)
+            break;
+    }
 
     if (!g_FMOD_DllHandle)
     {
-        LOG_ERROR(PLID, "Failed to load fmodex dll from \"%s\"! The SoundEngine API may not work.", szDllPath);
+        LOG_ERROR(PLID, "Failed to load fmodex library (last path \"%s\")! The SoundEngine API may not work.", szDllPath);
         return false;
     }
 
@@ -142,7 +164,7 @@ static bool LoadFMOD_Server()
         return false;
     }
 
-    g_pfn_FMOD_System_SetOutput(g_FMOD_System, FMOD_OUTPUTTYPE_NOSOUND);
+    result = g_pfn_FMOD_System_SetOutput(g_FMOD_System, FMOD_OUTPUTTYPE_NOSOUND);
 
     if (result != FMOD_OK)
     {
